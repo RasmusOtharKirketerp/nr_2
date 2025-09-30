@@ -66,16 +66,36 @@ Some integration tests reach out to real HTTP endpoints; set `PYTEST_CURRENT_TES
 # Build the image (installs dependencies, spaCy models, and NLTK data)
 docker build -t newsreader -f docker/Dockerfile .
 
-# Run only the web UI
+# Run both the Flask UI and the background daemon (default command)
+docker run --rm -p 8000:8000 `
+  -v "$(Get-Location)\data:/app/data" `
+  -v "$(Get-Location)\config:/app/config" `
+  -v "$(Get-Location)\var:/var/newsreader" `
+  newsreader
+
+# Launch only the web UI
 docker run --rm -p 8000:8000 `
   -v "$(Get-Location)\data:/app/data" `
   -v "$(Get-Location)\config:/app/config" `
   -v "$(Get-Location)\var:/var/newsreader" `
   newsreader web
 
-# Or launch both web + daemon using Compose
+# Launch only the daemon
+docker run --rm `
+  -v "$(Get-Location)\data:/app/data" `
+  -v "$(Get-Location)\config:/app/config" `
+  -v "$(Get-Location)\var:/var/newsreader" `
+  newsreader daemon
+
+# Or run the full stack with docker compose (separate containers)
 docker compose -f docker/docker-compose.yml up --build
 ```
+
+`docker/docker-compose.yml` starts the combined stack service by default; enable the `dev` profile if you want individual
+web-only or daemon-only containers (e.g. `docker compose --profile dev up web`).
+
+`entrypoint.sh` exposes the combined mode under the `stack` command (the image default). You can customise the subprocess commands with
+`NEWSREADER_STACK_WEB_CMD` or `NEWSREADER_STACK_DAEMON_CMD` environment variables if you need to add CLI flags.
 
 The Compose file mounts `../data`, `../config`, and `../var` so that state persists between container runs. Update `FLASK_SECRET_KEY` in `docker/docker-compose.yml` before deploying outside of local development.
 

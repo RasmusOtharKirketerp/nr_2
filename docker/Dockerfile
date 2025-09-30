@@ -57,4 +57,4 @@ VOLUME ["/app/data", "/var/newsreader"]
 EXPOSE 8000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["web"]
+CMD ["stack"]

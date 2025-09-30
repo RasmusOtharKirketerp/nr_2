@@ -1,10 +1,24 @@
 services:
-  web:
+  stack:
     build:
       context: ..
       dockerfile: docker/Dockerfile
     image: newsreader:latest
+    command: stack
+    ports:
+      - "8000:8000"
+    environment:
+      FLASK_SECRET_KEY: change-me
+    volumes:
+      - ../data:/app/data
+      - ../config:/app/config
+      - ../var:/var/newsreader
+    restart: unless-stopped
+
+  web:
+    image: newsreader:latest
     command: web
+    profiles: [dev]
     ports:
       - "8000:8000"
     environment:
@@ -18,8 +32,7 @@ services:
   daemon:
     image: newsreader:latest
     command: daemon
-    depends_on:
-      - web
+    profiles: [dev]
     environment:
       FLASK_SECRET_KEY: change-me
     volumes:
