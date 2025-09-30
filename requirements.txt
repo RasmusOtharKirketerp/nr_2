@@ -1,1 +1,10 @@
- 
+psutil
+lxml[html_clean]
+newspaper3k==0.2.8
+nltk==3.8.1
+schedule==1.2.0
+bcrypt==4.0.1
+flask
+requests>=2.31.0
+spacy==3.7.2
+geopy==2.4.1

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<a href="{{ url_for('index') }}">&larr; Back to articles</a>
+<div class="row mt-3">
+    <div class="col-md-3">
+        {% if article.thumbnail_url %}
+        <img src="{{ article.thumbnail_url }}" alt="Thumbnail" class="img-thumbnail mb-3"
+            style="max-width: 180px; max-height: 180px;">
+        {% else %}
+        <span class="text-muted">No image</span>
+        {% endif %}
+    </div>
+    <div class="col-md-9">
+        <h1>{{ article.title }}</h1>
+        <p><strong>Source:</strong> {{ article.source }}<br>
+            <strong>Published:</strong> {{ article.published_date or 'Unknown' }}<br>
+            <strong>Score:</strong> {{ '%.2f'|format(article.score) }}
+        </p>
+        <hr>
+        <h3>Summary</h3>
+        <p>{{ article.summary or 'No summary available.' }}</p>
+        <hr>
+        <h3>Full Content</h3>
+        <p>{{ article.content or 'No content available.' }}</p>
+    </div>
+</div>
+{% endblock %}

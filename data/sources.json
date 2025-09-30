@@ -1,0 +1,23 @@
+{
+    "daemon_enabled": true,
+    "fetch_interval_minutes": 30,
+    "max_articles_per_source": 10,
+    "cleanup_days": 30,
+    "sources": [
+        {
+            "name": "TV 2 Nyheder",
+            "url": "https://nyheder.tv2.dk",
+            "enabled": true
+        },
+        {
+            "name": "DR Nyheder",
+            "url": "https://www.dr.dk/nyheder",
+            "enabled": true
+        },
+        {
+            "name": "Altinget",
+            "url": "https://www.altinget.dk",
+            "enabled": false
+        }
+    ]
+}

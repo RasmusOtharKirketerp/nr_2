@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}News Reader{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: #f8f9fa;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('index') }}">News Reader</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
+                aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-list"></i> Menu
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownMenuLink">
+                            <li><a class="dropdown-item" href="{{ url_for('index') }}">Home</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('index') }}"><i class="bi bi-card-list"></i>
+                                    Article List</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('heatmap') }}"><i
+                                        class="bi bi-geo-alt-fill"></i> Heatmap</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('api_geo_tags') }}" target="_blank"><i
+                                        class="bi bi-globe2"></i> Geo-Tag API</a></li>
+                            {% if user_id %}
+                            <li class="dropdown-item disabled">
+                                <i class="bi bi-person-circle"></i>
+                                Logged in as <strong>{{ username }}</strong>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('score_words') }}">My Scoring Words</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('profile') }}">Profile</a></li>
+                            <li>
+                                <form method="post" action="{{ url_for('recalc_scores') }}" style="display:inline;">
+                                    <button type="submit" class="dropdown-item">Recalculate Scores</button>
+                                </form>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a></li>
+                            {% if username == 'admin' %}
+                            <li><a class="dropdown-item text-danger" href="{{ url_for('excluded_tags') }}">Manage
+                                    Excluded Tags</a></li>
+                            {% endif %}
+                            {% else %}
+                            <li><a class="dropdown-item" href="{{ url_for('login') }}">Login</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('register') }}">Register</a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<style>
+    #map {
+        height: 80vh;
+        width: 100vw;
+        margin-bottom: 2rem;
+    }
+</style>
+<div id="map"></div>
+<div id="sidebar"
+    style="position:fixed;top:0;right:0;width:350px;height:100vh;background:#fff;z-index:1000;overflow-y:auto;box-shadow:-2px 0 8px #0001;display:none;padding:1rem;">
+    <h5>Articles for <span id="sidebar-tag"></span></h5>
+    <ul id="sidebar-articles" class="list-group"></ul>
+    <button onclick="document.getElementById('sidebar').style.display='none'"
+        class="btn btn-secondary btn-sm mt-2">Close</button>
+</div>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+    // Initialize map
+    var map = L.map('map').setView([20, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Helper: check if user is admin (from template context)
+    var isAdmin = "{{ username|e }}" === "admin";
+
+    // Store all markers so we can clear them on refresh
+    var markers = [];
+
+    function loadGeoTags() {
+        // Remove old markers
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        fetch('/api/geo_tags')
+            .then(response => response.json())
+            .then(data => {
+                data.geo_tags
+                    .filter(tag => tag.lat && tag.lon)
+                    .forEach(tag => {
+                        var marker = L.marker([tag.lat, tag.lon]).addTo(map);
+                        var popupContent = `<b>${tag.tag}</b>`;
+                        if (isAdmin) {
+                            popupContent += `<br><form class='exclude-form' data-tag='${tag.tag}' style='margin-top:8px;'>` +
+                                `<button type='submit' class='btn btn-sm btn-danger'>Exclude Tag</button>` +
+                                `</form>`;
+                        }
+                        marker.bindPopup(popupContent);
+                        marker.on('click', function () {
+                            showArticlesForTag(tag.tag);
+                        });
+                        markers.push(marker);
+                    });
+            });
+    }
+
+    function showArticlesForTag(tag) {
+        document.getElementById('sidebar').style.display = 'block';
+        document.getElementById('sidebar-tag').textContent = tag;
+        var list = document.getElementById('sidebar-articles');
+        list.innerHTML = '<li class="list-group-item">Loading...</li>';
+        fetch('/api/articles_by_tag?tag=' + encodeURIComponent(tag))
+            .then(resp => resp.json())
+            .then(data => {
+                if (!data.articles || !data.articles.length) {
+                    list.innerHTML = '<li class="list-group-item">No articles found.</li>';
+                    return;
+                }
+                list.innerHTML = '';
+                data.articles.forEach(article => {
+                    var li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    var a = document.createElement('a');
+                    a.textContent = article.title;
+                    a.href = article.url || '#';
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    a.style.textDecoration = 'underline';
+                    li.appendChild(a);
+                    li.setAttribute('data-summary', article.summary || 'No summary');
+                    li.onmouseover = function () {
+                        li.title = li.getAttribute('data-summary');
+                    };
+                    list.appendChild(li);
+                });
+            });
+    }
+
+    // Initial load
+    loadGeoTags();
+
+    // Delegate exclude form submission
+    document.addEventListener('submit', function (e) {
+        if (e.target.classList.contains('exclude-form')) {
+            e.preventDefault();
+            var tag = e.target.getAttribute('data-tag');
+            fetch('/excluded-tags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'tag=' + encodeURIComponent(tag)
+            })
+                .then(resp => {
+                    if (resp.ok) {
+                        loadGeoTags();
+                    } else {
+                        alert('Failed to exclude tag');
+                    }
+                });
+        }
+    });
+</script>
+{% endblock %}
