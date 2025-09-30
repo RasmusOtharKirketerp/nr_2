@@ -1,0 +1,61 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing and coverage
+.pytest_cache/
+.coverage*
+htmlcov/
+.tox/
+.nox/
+
+# Type checker caches
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and runtime data
+*.log
+var/*
+!var/.gitkeep
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Application caches
+.cache/
+**/__pypackages__/
+
+# Local tooling
+pip-wheel-metadata/
+
+# SQLite databases
+*.sqlite3
+*.db
+
+# NLTK/Spacy data
+**/nltk_data/
+**/spacy_data/
