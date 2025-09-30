@@ -36,22 +36,19 @@ COPY config ./config
 
 RUN pip install --no-cache-dir -e .
 
-# Preload language resources so containers are ready to go
-RUN python -m spacy download da_core_news_lg \
-    && python -m spacy download en_core_web_sm \
-    && python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
-
 # Move entrypoint into PATH and set permissions
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && adduser --system --group appuser \
-    && mkdir -p /var/newsreader \
+    && mkdir -p /var/newsreader /var/newsreader/nltk_data \
     && chown -R appuser:appuser /app /var/newsreader
 
 ENV NEWSREADER_DATA_DIR=/app/data \
     NEWSREADER_VAR_DIR=/var/newsreader \
     NEWSREADER_LOG_DIR=/var/newsreader/logs \
-    PYTHONPATH=/app/src
+    PYTHONPATH=/app/src \
+    NLTK_DATA=/var/newsreader/nltk_data \
+    HOME=/var/newsreader
 
 USER appuser
 
