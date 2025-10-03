@@ -59,3 +59,8 @@ pip-wheel-metadata/
 # NLTK/Spacy data
 **/nltk_data/
 **/spacy_data/
+
+# SSH Private Keys - NEVER COMMIT THESE!
+*.pem
+**/*.pem
+data/*.pem

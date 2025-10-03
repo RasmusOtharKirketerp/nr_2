@@ -120,6 +120,12 @@ case "$MODE" in
     cleanup_daemon_lock
     run_stack
     ;;
+  fetch-then-web)
+    log "Running one-time article fetch..."
+    python -m newsreader.main --fetch
+    log "Starting Flask web server"
+    exec python -m newsreader.main --flask "$@"
+    ;;
   *)
     exec "$MODE" "$@"
     ;;

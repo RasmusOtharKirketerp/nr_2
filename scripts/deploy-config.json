@@ -1,0 +1,26 @@
+{
+    "_comment": "Environment-specific deployment configurations. Copy this file to deploy-config.json and customize for your environment",
+    "environments": {
+        "production": {
+            "instanceIP": "63.179.143.196",
+            "keyPath": "data\\aws_ec2_rex.pem",
+            "port": 80,
+            "secretKey": "CHANGE-ME-TO-RANDOM-STRING-IN-PRODUCTION",
+            "tag": "latest"
+        },
+        "staging": {
+            "instanceIP": "staging-ip-here",
+            "keyPath": "data\\aws_ec2_rex.pem",
+            "port": 8000,
+            "secretKey": "staging-secret-key",
+            "tag": "staging"
+        },
+        "development": {
+            "instanceIP": "dev-ip-here",
+            "keyPath": "data\\aws_ec2_rex.pem",
+            "port": 8000,
+            "secretKey": "dev-secret-key",
+            "tag": "dev"
+        }
+    }
+}
