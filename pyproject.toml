@@ -7,7 +7,6 @@ name = "newsreader"
 version = "0.1.0"
 description = "Newsreader application"
 readme = "README.md"
-requires-python = ">=3.10"
 dependencies = [
     "psutil",
     "lxml[html_clean]",

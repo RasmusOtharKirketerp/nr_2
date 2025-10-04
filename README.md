@@ -15,29 +15,21 @@ An end-to-end news aggregation application featuring background fetching, NLP-dr
 
 ## Prerequisites
 
-- Python ≥ 3.10 (3.11 recommended on Windows so spaCy wheels install without a compiler)
+- Python 3.13
 - Docker (optional, for container workflow)
 - PowerShell 7+ (commands below assume the default Windows shell)
 
 ## Local setup (PowerShell)
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python -m spacy download da_core_news_lg
-python -m spacy download en_core_web_sm
-python -m nltk.downloader punkt stopwords
-```
+### One-command setup (recommended)
 
-### Bootstrap project data
-
-`data/sources.json` ships with a minimal Danish news configuration. Update it with your own sources as needed. To regenerate a comprehensive geo-place list (recommended for production), run:
+Use the helper script (creates a fresh Python 3.13 venv, installs deps & models):
 
 ```powershell
-python scripts\generate_geo_places.py
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_env.ps1
 ```
+
+Add `-Force` to recreate the environment, or `-Python "C:\\Path\\To\\Python311\\python.exe"` for a custom interpreter.
 
 This will download the full dataset and overwrite `data\geo_places.json`.
 
