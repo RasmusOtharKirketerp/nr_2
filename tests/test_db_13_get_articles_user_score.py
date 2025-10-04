@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def test_database_returns_user_specific_scores(db_manager, auth_manager):
@@ -10,7 +10,7 @@ def test_database_returns_user_specific_scores(db_manager, auth_manager):
         summary="",
         url="https://example.com/score",
         source="ScoreSource",
-        published_date=datetime.utcnow(),
+    published_date=datetime.now(UTC),
         thumbnail_url=None,
     )
 

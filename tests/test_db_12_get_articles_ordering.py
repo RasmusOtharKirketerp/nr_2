@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def test_database_orders_articles_by_score(db_manager):
@@ -8,7 +8,7 @@ def test_database_orders_articles_by_score(db_manager):
         summary="",
         url="https://example.com/low",
         source="OrderSource",
-        published_date=datetime.utcnow(),
+    published_date=datetime.now(UTC),
         thumbnail_url=None,
     )
     second_id = db_manager.save_article(
@@ -17,7 +17,7 @@ def test_database_orders_articles_by_score(db_manager):
         summary="",
         url="https://example.com/high",
         source="OrderSource",
-        published_date=datetime.utcnow(),
+    published_date=datetime.now(UTC),
         thumbnail_url=None,
     )
 

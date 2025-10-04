@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def test_database_saves_article(db_manager):
@@ -8,7 +8,7 @@ def test_database_saves_article(db_manager):
         summary="Short summary",
         url="https://example.com/breaking",
         source="UnitTest",
-        published_date=datetime.utcnow(),
+    published_date=datetime.now(UTC),
         thumbnail_url="https://example.com/thumb.jpg",
     )
 

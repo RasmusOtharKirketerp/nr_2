@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def test_database_persists_thumbnail_url(db_manager):
@@ -8,7 +8,7 @@ def test_database_persists_thumbnail_url(db_manager):
         summary="",
         url="https://example.com/thumb",
         source="ThumbSource",
-        published_date=datetime.utcnow(),
+    published_date=datetime.now(UTC),
         thumbnail_url="https://example.com/thumb.png",
     )
 

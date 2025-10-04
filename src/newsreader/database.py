@@ -2,10 +2,30 @@ import sqlite3
 import json
 import logging
 import tempfile
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Dict, Optional, Tuple
 from .settings import get_settings
 from pathlib import Path
+
+
+def _adapt_datetime(value: datetime) -> str:
+    """Convert datetimes to an ISO-8601 string in UTC for SQLite storage."""
+
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return value.isoformat()
+
+
+def _adapt_date(value: date) -> str:
+    """Convert dates to ISO-8601 strings for SQLite storage."""
+
+    return value.isoformat()
+
+
+sqlite3.register_adapter(datetime, _adapt_datetime)
+sqlite3.register_adapter(date, _adapt_date)
 
 SETTINGS = get_settings()
 
@@ -522,7 +542,7 @@ class DatabaseManager:
         """Create a new session for user and return session token"""
         import secrets
         session_token = secrets.token_hex(32)
-        expires_at = datetime.now() + timedelta(hours=24)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -538,7 +558,7 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT user_id FROM user_sessions WHERE session_token = ? AND expires_at > ?",
-                (session_token, datetime.now())
+                (session_token, datetime.now(timezone.utc))
             )
             row = cursor.fetchone()
             return row[0] if row else None

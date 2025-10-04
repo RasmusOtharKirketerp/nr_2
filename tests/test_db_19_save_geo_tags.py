@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def test_database_saves_geo_tags(db_manager):
@@ -8,7 +8,7 @@ def test_database_saves_geo_tags(db_manager):
         summary="",
         url="https://example.com/geo",
         source="GeoSource",
-        published_date=datetime.utcnow(),
+    published_date=datetime.now(UTC),
         thumbnail_url=None,
     )
 

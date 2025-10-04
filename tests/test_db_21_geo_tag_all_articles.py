@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 class StubNLP:
@@ -27,7 +27,7 @@ def test_database_geo_tag_all_articles_inserts_tags(db_manager):
         summary="",
         url="https://example.com/geo-pipeline",
         source="GeoSource",
-        published_date=datetime.utcnow(),
+    published_date=datetime.now(UTC),
         thumbnail_url=None,
     )
 

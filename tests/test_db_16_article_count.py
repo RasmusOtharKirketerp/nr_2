@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def test_database_reports_article_count(db_manager):
@@ -9,7 +9,7 @@ def test_database_reports_article_count(db_manager):
             summary="",
             url=f"https://example.com/count-{idx}",
             source="CountSource",
-            published_date=datetime.utcnow(),
+            published_date=datetime.now(UTC),
             thumbnail_url=None,
         )
 

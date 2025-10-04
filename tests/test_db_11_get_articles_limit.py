@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def test_database_respects_article_limit(db_manager):
@@ -9,7 +9,7 @@ def test_database_respects_article_limit(db_manager):
             summary="",
             url=f"https://example.com/article-{idx}",
             source="LimitSource",
-            published_date=datetime.utcnow(),
+            published_date=datetime.now(UTC),
             thumbnail_url=None,
         )
 

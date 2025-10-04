@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def test_database_updates_global_article_score(db_manager):
@@ -8,7 +8,7 @@ def test_database_updates_global_article_score(db_manager):
         summary="",
         url="https://example.com/global-score",
         source="ScoreSource",
-        published_date=datetime.utcnow(),
+    published_date=datetime.now(UTC),
         thumbnail_url=None,
     )
 

@@ -1,9 +1,9 @@
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Callable, Dict, Optional
 
-import pytest
+import pytest  # type: ignore[import]
 
 from newsreader.auth import AuthManager
 from newsreader.database import DatabaseManager
@@ -98,7 +98,7 @@ def article_factory(db_manager) -> Callable[..., int]:
         idx = counter["value"]
         article_title = title or f"Article Title {idx}"
         article_url = url or f"https://example.com/article-{idx}"
-        pub_date = published_date or datetime.utcnow()
+        pub_date = published_date or datetime.now(UTC)
         return db_manager.save_article(
             article_title,
             content,
