@@ -46,7 +46,23 @@ This guide enables AI coding agents to work productively in the `newsreader` cod
 ## Integration Points
 - **NLP:** Uses spaCy and NLTK; models must be downloaded in setup.
 - **AWS EC2:** Deployment scripts automate Docker image build, SCP upload, and container start.
+  - Container logs: `./scripts/manage.ps1 -Action logs -Lines 200`
+  - Inspect SQLite tables fast (container lacks the `sqlite3` CLI):
+    ```pwsh
+    ssh -i data/aws_ec2_rex.pem -o StrictHostKeyChecking=no ubuntu@<ip> `
+      'docker exec newsreader-stack python -c "import sqlite3, json;\nconn = sqlite3.connect(\'/var/newsreader/newsreader.db\');\nprint(json.dumps([tuple(r) for r in conn.execute(\'SELECT id, url, thumbnail_url FROM articles ORDER BY id DESC LIMIT 5\')], ensure_ascii=False))"'
+    ```
+  - Swap the SQL inside the command above to run other queries (e.g. `PRAGMA table_info(articles)` to inspect columns).
 - **Flask UI:** Templates in `src/newsreader/templates/`.
+
+## Debugging & Communication Playbook
+- **Collect context first:** Confirm the active branch, recent commands, and log tail before editing. Reference `./scripts/manage.ps1 -Action logs -Lines 200` when diagnosing production issues.
+- **Run targeted remote probes:** Reuse the SSH + `docker exec` pattern to run single-line Python checks inside the container. Examples:
+  - Validate Newspaper3k parsing: `python -c "from newspaper import Article; ..."`
+  - Compare with raw HTTP: `python -c "import requests; print(requests.get(url, timeout=10).status_code)"`
+- **Inspect SQLite data programmatically:** Prefer the Python snippet in the section above to dump result tuples, then swap in queries such as `SELECT COUNT(*) FROM articles WHERE thumbnail_url IS NOT NULL`.
+- **Share findings clearly:** When reporting back, summarize the question, the commands executed, and key log or query snippets. Highlight differences between local and EC2 runs and call out assumptions (e.g., when a CDN blocks cloud IPs).
+- **Iterate with small steps:** After each probe or change, capture the delta (e.g., “logs now include fetch failures” or “DB rows still NULL”) so the user can follow the debugging trail quickly.
 
 ## Examples
 - To run the Flask UI locally:
@@ -65,5 +81,3 @@ This guide enables AI coding agents to work productively in the `newsreader` cod
 - See `docker/docker-compose.yml` for container orchestration.
 
 ---
-
-**Feedback:** If any section is unclear or missing, please specify which workflows, conventions, or integration points need more detail.

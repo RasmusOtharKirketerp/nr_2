@@ -37,8 +37,9 @@ This will download the full dataset and overwrite `data\geo_places.json`.
 
 ```powershell
 $env:PYTHONPATH = "$(Get-Location)\src"
-python -m newsreader.main --web    # Flask UI on http://127.0.0.1:8000
-# Or start the background daemon instead:
+python -m newsreader.main --stack --debug    # Run web + daemon with auto-restart (Ctrl+C to stop)
+# Single-service modes remain available if you need them:
+python -m newsreader.main --web              # Flask UI on http://127.0.0.1:8000
 python -m newsreader.main --daemon
 ```
 
@@ -136,8 +137,10 @@ docker compose -f docker/docker-compose.yml up --build
 `docker/docker-compose.yml` starts the combined stack service by default; enable the `dev` profile if you want individual
 web-only or daemon-only containers (e.g. `docker compose --profile dev up web`).
 
-`entrypoint.sh` exposes the combined mode under the `stack` command (the image default). You can customise the subprocess commands with
-`NEWSREADER_STACK_WEB_CMD` or `NEWSREADER_STACK_DAEMON_CMD` environment variables if you need to add CLI flags.
+`entrypoint.sh` now delegates to the Python `--stack` supervisor (the image default) which automatically restarts whichever
+component exits. Adjust its behaviour with `NEWSREADER_STACK_ARGS`, `NEWSREADER_STACK_DEBUG=1`, `NEWSREADER_STACK_VERBOSE=1`,
+`NEWSREADER_STACK_HOST`, or `NEWSREADER_STACK_PORT`. Legacy `NEWSREADER_STACK_WEB_CMD` / `NEWSREADER_STACK_DAEMON_CMD` variables
+remain supported but will fall back to the older shell-based launcher.
 
 The Compose file mounts `../data`, `../config`, and `../var` so that state persists between container runs. Update `FLASK_SECRET_KEY` in `docker/docker-compose.yml` before deploying outside of local development.
 

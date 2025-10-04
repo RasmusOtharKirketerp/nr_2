@@ -14,7 +14,7 @@ from .settings import get_settings
 SETTINGS = get_settings()
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s %(levelname)s %(name)s %(message)s',
     handlers=[
         logging.FileHandler(str(SETTINGS.daemon_log_path), mode='a'),

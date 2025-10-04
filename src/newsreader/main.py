@@ -13,13 +13,19 @@ A comprehensive news reader application with the following features:
 Usage:
     python main.py --web             # Launch Flask web server
     python main.py --daemon           # Run background daemon
+    python main.py --stack            # Run web and daemon together with supervision
     python main.py --fetch            # Fetch articles once
     python main.py --help             # Show help
 """
 
 import argparse
 import logging
+import signal
+import subprocess
 import sys
+import threading
+import time
+from collections import defaultdict
 
 from .auth import AuthManager
 from .daemon import NewsDaemon
@@ -153,6 +159,139 @@ def launch_web(host: str = "0.0.0.0", port: int = 8000, debug: bool = False):
     logger.info("Starting Flask web server on %s:%s (debug=%s)", host, port, debug)
     app.run(host=host, port=port, debug=debug)
 
+
+def launch_stack(
+    host: str = "0.0.0.0",
+    port: int = 8000,
+    debug: bool = False,
+    verbose: bool = False,
+    restart_delay: int = 5,
+    max_restart_delay: int = 60,
+    stable_reset_seconds: int = 300,
+    shutdown_timeout: int = 20,
+):
+    """Run the daemon and web server together with automatic restarts."""
+
+    logger = logging.getLogger("newsreader.stack")
+    stop_event = threading.Event()
+    processes = {}
+    restart_counters = defaultdict(int)
+    process_start_times = {}
+    last_exit_codes = {}
+
+    def command_for(name: str) -> list[str]:
+        cmd = [sys.executable, "-m", "newsreader.main"]
+        if name == "daemon":
+            cmd.append("--daemon")
+            if verbose:
+                cmd.append("--verbose")
+        elif name == "web":
+            cmd.extend(["--web", "--host", str(host), "--port", str(port)])
+            if debug:
+                cmd.append("--debug")
+            if verbose and "--verbose" not in cmd:
+                cmd.append("--verbose")
+        else:
+            raise ValueError(f"Unknown component '{name}'")
+        return cmd
+
+    def spawn(name: str) -> None:
+        cmd = command_for(name)
+        logger.info("Launching %s process: %s", name, " ".join(cmd))
+        process = subprocess.Popen(cmd)
+        processes[name] = process
+        process_start_times[name] = time.monotonic()
+
+    def handle_signal(signum, frame):
+        logger.info("Received signal %s, shutting down stack supervisor", signum)
+        stop_event.set()
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            signal.signal(sig, handle_signal)
+        except Exception:
+            # Some environments (e.g., Windows service threads) may not support signal handlers
+            pass
+
+    try:
+        spawn("daemon")
+        spawn("web")
+    except Exception:
+        stop_event.set()
+        raise
+
+    try:
+        while not stop_event.is_set():
+            for name, process in list(processes.items()):
+                if process.poll() is None:
+                    uptime = time.monotonic() - process_start_times.get(name, 0.0)
+                    if restart_counters[name] and uptime >= stable_reset_seconds:
+                        logger.info("%s process stable for %.0f seconds; clearing restart backoff", name, uptime)
+                        restart_counters[name] = 0
+                    continue
+
+                return_code = process.returncode
+                last_exit_codes[name] = return_code
+                uptime = time.monotonic() - process_start_times.get(name, time.monotonic())
+
+                if stop_event.is_set():
+                    continue
+
+                if restart_counters[name] and uptime >= stable_reset_seconds:
+                    restart_counters[name] = 0
+
+                restart_counters[name] += 1
+                delay = min(restart_delay * (2 ** (restart_counters[name] - 1)), max_restart_delay)
+
+                logger.warning(
+                    "%s process exited with code %s after %.1f seconds (restart #%d in %.1f seconds)",
+                    name,
+                    return_code,
+                    uptime,
+                    restart_counters[name],
+                    delay,
+                )
+
+                if stop_event.wait(delay):
+                    continue
+
+                spawn(name)
+
+            stop_event.wait(1.0)
+
+    except KeyboardInterrupt:
+        logger.info("Stack supervisor interrupted by user")
+        stop_event.set()
+
+    finally:
+        logger.info("Shutting down stack supervisor")
+        stop_event.set()
+        for name, process in processes.items():
+            if process.poll() is None:
+                logger.info("Terminating %s process (pid=%s)", name, process.pid)
+                process.terminate()
+
+        deadline = time.monotonic() + shutdown_timeout
+        for name, process in processes.items():
+            try:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(cmd=process.args, timeout=shutdown_timeout)
+                process.wait(timeout=remaining)
+            except subprocess.TimeoutExpired:
+                logger.warning("%s process did not exit in time; forcing kill", name)
+                process.kill()
+                process.wait()
+
+    if stop_event.is_set():
+        return 0
+
+    for code in last_exit_codes.values():
+        if code not in (None, 0):
+            return code
+
+    return 0
+
 def fetch_articles_once():
     """Fetch articles once and exit"""
     print("Fetching articles...")
@@ -243,6 +382,7 @@ def main():
         epilog="""
 Examples:
   python main.py --daemon     # Run background daemon
+  python main.py --stack      # Run web + daemon with supervision
   python main.py --fetch      # Fetch articles once
   python main.py --stats      # Show database statistics
   python main.py --cleanup    # Clear all articles from database
@@ -280,6 +420,12 @@ Examples:
         '--daemon', '-d',
         action='store_true',
         help='Run the background daemon for periodic article fetching'
+    )
+
+    parser.add_argument(
+        '--stack',
+        action='store_true',
+        help='Run the web server and daemon together with automatic restarts'
     )
 
     parser.add_argument(
@@ -352,6 +498,15 @@ Examples:
         fetch_articles_once()
         return
 
+    if args.stack:
+        exit_code = launch_stack(
+            host=args.host,
+            port=args.port,
+            debug=args.debug,
+            verbose=args.verbose,
+        )
+        sys.exit(exit_code)
+
     if args.daemon:
         launch_daemon()
         return
@@ -360,7 +515,7 @@ Examples:
         launch_web(host=args.host, port=args.port, debug=args.debug)
         return
 
-    print("No mode selected. Use --web, --daemon, --fetch, or one of the maintenance flags.")
+    print("No mode selected. Use --web, --daemon, --stack, --fetch, or one of the maintenance flags.")
     parser.print_help()
 
 if __name__ == "__main__":

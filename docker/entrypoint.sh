@@ -27,7 +27,7 @@ ensure_shutdown() {
   done
 }
 
-run_stack() {
+legacy_run_stack() {
   STACK_DAEMON_CMD="${NEWSREADER_STACK_DAEMON_CMD:-python -m newsreader.main --daemon}"
   STACK_WEB_CMD="${NEWSREADER_STACK_WEB_CMD:-python -m newsreader.main --flask}"
 
@@ -74,6 +74,45 @@ run_stack() {
   set -e
 
   exit "$STATUS"
+}
+
+run_stack() {
+  if [ -n "${NEWSREADER_STACK_CMD:-}" ]; then
+    log "Starting custom stack command: ${NEWSREADER_STACK_CMD}"
+    exec sh -c "${NEWSREADER_STACK_CMD}"
+  fi
+
+  if [ -n "${NEWSREADER_STACK_DAEMON_CMD:-}" ] || [ -n "${NEWSREADER_STACK_WEB_CMD:-}" ]; then
+    log "Using legacy stack launcher with NEWSREADER_STACK_DAEMON_CMD/WEB_CMD"
+    legacy_run_stack
+    return
+  fi
+
+  set -- python -m newsreader.main --stack
+
+  if [ "${NEWSREADER_STACK_DEBUG:-0}" = "1" ]; then
+    set -- "$@" --debug
+  fi
+
+  if [ "${NEWSREADER_STACK_VERBOSE:-0}" = "1" ]; then
+    set -- "$@" --verbose
+  fi
+
+  if [ -n "${NEWSREADER_STACK_HOST:-}" ]; then
+    set -- "$@" --host "${NEWSREADER_STACK_HOST}"
+  fi
+
+  if [ -n "${NEWSREADER_STACK_PORT:-}" ]; then
+    set -- "$@" --port "${NEWSREADER_STACK_PORT}"
+  fi
+
+  if [ -n "${NEWSREADER_STACK_ARGS:-}" ]; then
+    # shellcheck disable=SC2086
+    set -- "$@" ${NEWSREADER_STACK_ARGS}
+  fi
+
+  log "Starting combined stack supervisor: $*"
+  exec "$@"
 }
 
 cleanup_daemon_lock() {
