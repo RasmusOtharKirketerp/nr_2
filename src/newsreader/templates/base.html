@@ -56,8 +56,10 @@
                             </li>
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a></li>
                             {% if username == 'admin' %}
-                            <li><a class="dropdown-item text-danger" href="{{ url_for('excluded_tags') }}">Manage
-                                    Excluded Tags</a></li>
+                            <li><a class="dropdown-item text-danger" href="{{ url_for('admin_dashboard') }}"><i
+                                        class="bi bi-speedometer2"></i> Admin Dashboard</a></li>
+                            <li><a class="dropdown-item text-danger" href="{{ url_for('excluded_tags') }}"><i
+                                        class="bi bi-slash-circle"></i> Manage Excluded Tags</a></li>
                             {% endif %}
                             {% else %}
                             <li><a class="dropdown-item" href="{{ url_for('login') }}">Login</a></li>

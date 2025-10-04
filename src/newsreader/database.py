@@ -633,6 +633,81 @@ class DatabaseManager:
                 articles.append(article)
             return articles
 
+    def delete_article(self, article_id: int) -> bool:
+        """Delete an article and all related records."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM geo_tags WHERE article_id = ?", (article_id,))
+            cursor.execute("DELETE FROM user_article_scores WHERE article_id = ?", (article_id,))
+            cursor.execute("DELETE FROM articles WHERE id = ?", (article_id,))
+            deleted = cursor.rowcount
+            conn.commit()
+            return deleted > 0
+
+    def delete_all_articles(self) -> int:
+        """Delete all articles and associated records from the database."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM geo_tags")
+            cursor.execute("DELETE FROM user_article_scores")
+            cursor.execute("DELETE FROM geo_tag_not_found")
+            cursor.execute("DELETE FROM articles")
+            deleted_articles = cursor.rowcount
+            conn.commit()
+            return deleted_articles
+
+    def clear_geo_tags(self, reset_not_found: bool = False) -> int:
+        """Remove all stored geo-tags. Optionally reset the not-found cache."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM geo_tags")
+            cleared = cursor.rowcount
+            if reset_not_found:
+                cursor.execute("DELETE FROM geo_tag_not_found")
+            conn.commit()
+            return cleared
+
+    def get_user_usage_stats(self) -> List[Dict[str, Optional[str]]]:
+        """Return usage statistics for all users including last login and login counts."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT
+                    u.id AS user_id,
+                    u.username,
+                    u.email,
+                    u.created_at,
+                    MAX(s.created_at) AS last_login_at,
+                    COUNT(s.id) AS login_count
+                FROM users u
+                LEFT JOIN user_sessions s ON u.id = s.user_id
+                GROUP BY u.id, u.username, u.email, u.created_at
+                ORDER BY u.username
+                """
+            )
+            stats = []
+            for row in cursor.fetchall():
+                created_at = row[3]
+                last_login = row[4]
+                if isinstance(created_at, datetime):
+                    created_at = created_at.isoformat()
+                elif isinstance(created_at, bytes):
+                    created_at = created_at.decode('utf-8')
+                if isinstance(last_login, datetime):
+                    last_login = last_login.isoformat()
+                elif isinstance(last_login, bytes):
+                    last_login = last_login.decode('utf-8')
+                stats.append({
+                    'id': row[0],
+                    'username': row[1],
+                    'email': row[2],
+                    'created_at': created_at,
+                    'last_login_at': last_login,
+                    'login_count': row[5]
+                })
+            return stats
+
     def update_article_score(self, article_id: int, score: float, user_id: Optional[int] = None):
         """Update article score globally or for a specific user"""
         if user_id is not None:

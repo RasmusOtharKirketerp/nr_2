@@ -14,6 +14,8 @@ import logging
 from .database import DatabaseManager
 from .scorer import ArticleScorer
 from .auth import AuthManager
+from .fetcher import NewsFetcher
+from .nlp_processor import NLPProcessor
 import os
 
 
@@ -32,6 +34,20 @@ info_logger.setLevel(logging.INFO)
 db = DatabaseManager()
 auth = AuthManager(db)
 scorer = ArticleScorer(db)
+
+
+def _get_admin_user_or_redirect():
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('You must be logged in as admin to access this page.', 'danger')
+        return None, redirect(url_for('login'))
+
+    username = session.get('username')
+    user = db.get_user_by_username(username) if username else None
+    if not user or user.get('username') != 'admin':
+        abort(403)
+
+    return user, None
 
 # --- Login Route ---
 @app.route('/login', methods=['GET', 'POST'])
@@ -95,13 +111,9 @@ def api_geo_tags():
 # --- Admin: Excluded Tags Management ---
 @app.route('/excluded-tags', methods=['GET', 'POST'])
 def excluded_tags():
-    user_id = session.get('user_id')
-    if not user_id:
-        flash('You must be logged in as admin to manage excluded tags.', 'danger')
-        return redirect(url_for('login'))
-    user = db.get_user_by_username(session.get('username'))
-    if user['username'] != 'admin':
-        abort(403)
+    admin_user, redirect_response = _get_admin_user_or_redirect()
+    if redirect_response:
+        return redirect_response
     if request.method == 'POST':
         tag = request.form.get('tag', '').strip()
         if tag:
@@ -111,7 +123,90 @@ def excluded_tags():
             flash('Tag cannot be empty.', 'danger')
         return redirect(url_for('excluded_tags'))
     tags = db.get_excluded_tags()
-    return render_template('excluded_tags.html', tags=tags, user_id=user_id, username=user['username'])
+    return render_template('excluded_tags.html', tags=tags, user_id=admin_user['id'], username=admin_user['username'])
+
+
+@app.route('/admin', methods=['GET'])
+def admin_dashboard():
+    admin_user, redirect_response = _get_admin_user_or_redirect()
+    if redirect_response:
+        return redirect_response
+
+    article_count = db.get_article_count()
+    with db.get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM geo_tags")
+        geo_tag_count = cursor.fetchone()[0]
+
+    user_stats = db.get_user_usage_stats()
+    latest_login = max((stat['last_login_at'] for stat in user_stats if stat['last_login_at']), default=None)
+
+    return render_template(
+        'admin_dashboard.html',
+        article_count=article_count,
+        geo_tag_count=geo_tag_count,
+        user_stats=user_stats,
+        latest_login=latest_login,
+        user_id=admin_user['id'],
+        username=admin_user['username']
+    )
+
+
+@app.route('/admin/articles/delete/<int:article_id>', methods=['POST'])
+def admin_delete_article(article_id):
+    admin_user, redirect_response = _get_admin_user_or_redirect()
+    if redirect_response:
+        return redirect_response
+
+    if db.delete_article(article_id):
+        scorer.score_all_articles()
+        flash(f'Deleted article {article_id}.', 'success')
+    else:
+        flash('Article not found or already deleted.', 'warning')
+
+    return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/admin/articles/purge-refresh', methods=['POST'])
+def admin_purge_refresh_articles():
+    admin_user, redirect_response = _get_admin_user_or_redirect()
+    if redirect_response:
+        return redirect_response
+
+    deleted = db.delete_all_articles()
+    try:
+        fetcher = NewsFetcher(db)
+        fetcher.fetch_all_sources()
+        scorer.score_all_articles()
+        new_total = db.get_article_count()
+        flash(f'Deleted {deleted} articles and fetched {new_total} fresh articles.', 'success')
+    except Exception as exc:
+        logging.getLogger(__name__).exception('Failed to refresh articles')
+        flash(f'Failed to refresh articles: {exc}', 'danger')
+
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/articles/geo-refresh', methods=['POST'])
+def admin_rerun_geo_tags():
+    admin_user, redirect_response = _get_admin_user_or_redirect()
+    if redirect_response:
+        return redirect_response
+
+    cleared = db.clear_geo_tags(reset_not_found=True)
+    try:
+        nlp = NLPProcessor()
+        db.geo_tag_all_articles(nlp)
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM geo_tags")
+            new_total = cursor.fetchone()[0]
+        flash(f'Regenerated geo-tags for {new_total} entries (cleared {cleared}).', 'success')
+    except Exception as exc:
+        logging.getLogger(__name__).exception('Failed to regenerate geo-tags')
+        flash(f'Failed to regenerate geo-tags: {exc}', 'danger')
+
+    return redirect(url_for('admin_dashboard'))
 
 # --- Recalculate Scores Route ---
 

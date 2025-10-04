@@ -32,6 +32,15 @@
                         title="{{ article.matched_words }}">Score: {{ '%.2f'|format(article.score) }}</span>
                     <a href="{{ article.url }}" class="btn btn-link btn-sm p-0 ms-2" target="_blank"
                         rel="noopener noreferrer">Original <i class="bi bi-box-arrow-up-right"></i></a>
+                    {% if username == 'admin' %}
+                    <form method="post" action="{{ url_for('admin_delete_article', article_id=article.id) }}"
+                        class="ms-2" style="display:inline-block;">
+                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                            onclick="return confirm('Delete this article?');">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>
