@@ -607,7 +607,7 @@ class DatabaseManager:
                     SELECT {select_cols}
                     FROM articles a
                     LEFT JOIN user_article_scores uas ON a.id = uas.article_id AND uas.user_id = ?
-                    ORDER BY score DESC, a.published_date DESC
+                    ORDER BY a.published_date DESC, score DESC
                     LIMIT ? OFFSET ?
                 """
                 cursor.execute(query, (user_id, limit, offset))
@@ -615,7 +615,7 @@ class DatabaseManager:
                 query = f"""
                     SELECT {select_cols}
                     FROM articles a
-                    ORDER BY score DESC, a.published_date DESC
+                    ORDER BY a.published_date DESC, a.score DESC
                     LIMIT ? OFFSET ?
                 """
                 cursor.execute(query, (limit, offset))
