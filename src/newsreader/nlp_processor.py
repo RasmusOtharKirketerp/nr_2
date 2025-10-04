@@ -24,6 +24,7 @@ class NLPProcessor:
         import spacy
         import logging
         import subprocess
+        import sys
         # Set up logging once for the class
         try:
             logging.basicConfig(level=logging.DEBUG,
@@ -41,25 +42,53 @@ class NLPProcessor:
         def ensure_spacy_model(model_name):
             try:
                 spacy.load(model_name)
+                return True
             except OSError:
                 self.logger.info(f"Downloading spaCy model: {model_name}")
-                subprocess.run(["python", "-m", "spacy", "download", model_name], check=True)
-        ensure_spacy_model('da_core_news_lg')
-        ensure_spacy_model('en_core_web_sm')
+                try:
+                    subprocess.run([sys.executable, "-m", "spacy", "download", model_name], check=True)
+                    spacy.load(model_name)
+                    return True
+                except Exception as exc:
+                    self.logger.warning(f"Unable to download spaCy model {model_name}: {exc}")
+                    return False
+
+        has_da_model = ensure_spacy_model('da_core_news_lg')
+        has_en_model = ensure_spacy_model('en_core_web_sm')
         # Try Danish model, fallback to English
         try:
-            self.nlp = spacy.load('da_core_news_lg')
-            self.model_used = 'da_core_news_lg'
-            self.logger.info("Loaded spaCy model: da_core_news_lg")
+            if has_da_model:
+                self.nlp = spacy.load('da_core_news_lg')
+                self.model_used = 'da_core_news_lg'
+                self.logger.info("Loaded spaCy model: da_core_news_lg")
+            elif has_en_model:
+                self.nlp = spacy.load('en_core_web_sm')
+                self.model_used = 'en_core_web_sm'
+                self.logger.info("Loaded spaCy model: en_core_web_sm (fallback)")
+            else:
+                raise OSError("No spaCy model available")
         except Exception:
-            self.nlp = spacy.load('en_core_web_sm')
-            self.model_used = 'en_core_web_sm'
-            self.logger.info("Loaded spaCy model: en_core_web_sm (fallback)")
+            # Absolute fallback to a blank Danish pipeline if model downloads are unavailable.
+            self.logger.warning("Falling back to blank Danish spaCy pipeline; install da_core_news_lg for full NER support.")
+            self.nlp = spacy.blank('da')
+            self.model_used = 'blank_da'
         self.logger.info(f"spaCy NER model in use: {self.model_used}")
         import nltk
-        self.stop_words = set(nltk.corpus.stopwords.words('english'))
-        # Add common news-specific stop words
-        self.stop_words.update(['said', 'would', 'could', 'also', 'one', 'two', 'three', 'first', 'second', 'new'])
+        # Build a multilingual stop-word set (English + Danish) to improve keyword extraction.
+        self.stop_words = set()
+        for language in ("english", "danish"):
+            try:
+                self.stop_words.update(nltk.corpus.stopwords.words(language))
+            except LookupError:
+                nltk.download('stopwords', quiet=True)
+                self.stop_words.update(nltk.corpus.stopwords.words(language))
+
+        # Add common news-specific stop words and high-frequency Danish helpers that are not in NLTK.
+        self.stop_words.update([
+            'said', 'would', 'could', 'also', 'one', 'two', 'three', 'first', 'second', 'new',
+            'det', 'der', 'vil', 'har', 'have', 'han', 'hun', 'kommer', 'mere', 'mange', 'skal',
+            'bliver', 'siger', 'jer', 'vi', 'de', 'den', 'som', 'for', 'med', 'hos'
+        ])
 
     def extract_geo_tags(self, text: str, title: str = None, summary: str = None, db_manager=None, not_found_callback=None) -> List[dict]:
         """Extract location names (geo-tags) from text, title, and summary by direct matching against a list of cities and countries. Only tags if found in the list. Skips all other entity types."""
@@ -144,10 +173,6 @@ class NLPProcessor:
         logger.debug(f"Extracted geo-tags: {tags}")
         info_logger.info(f"Extracted geo-tags: {tags}")
         return tags
-    def __init__(self):
-        self.stop_words = set(nltk.corpus.stopwords.words('english'))
-        # Add common news-specific stop words
-        self.stop_words.update(['said', 'would', 'could', 'also', 'one', 'two', 'three', 'first', 'second', 'new'])
 
     def preprocess_text(self, text: str) -> str:
         """Clean and preprocess text for analysis"""

@@ -13,11 +13,6 @@
             "name": "DR Nyheder",
             "url": "https://www.dr.dk/nyheder",
             "enabled": true
-        },
-        {
-            "name": "Altinget",
-            "url": "https://www.altinget.dk",
-            "enabled": false
         }
     ]
 }
