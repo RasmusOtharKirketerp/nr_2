@@ -9,14 +9,14 @@
             "tag": "latest"
         },
         "staging": {
-            "instanceIP": "staging-ip-here",
+            "instanceIP": "63.179.143.196",
             "keyPath": "data\\aws_ec2_rex.pem",
             "port": 8000,
             "secretKey": "staging-secret-key",
             "tag": "staging"
         },
         "development": {
-            "instanceIP": "dev-ip-here",
+            "instanceIP": "63.179.143.196",
             "keyPath": "data\\aws_ec2_rex.pem",
             "port": 8000,
             "secretKey": "dev-secret-key",

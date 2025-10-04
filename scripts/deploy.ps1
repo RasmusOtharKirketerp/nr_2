@@ -12,39 +12,44 @@
     5. Verifies deployment success
 
 .PARAMETER InstanceIP
-    Public IP address of the EC2 instance
+    Public IP address of the EC2 instance (default: 63.179.143.196)
     
 .PARAMETER KeyPath
-    Path to the SSH private key (.pem file)
+    Path to the SSH private key (.pem file) (default: data\\aws_ec2_rex.pem)
     
 .PARAMETER Tag
     Docker image tag (default: latest)
     
 .PARAMETER Port
-    Host port to expose the service on (default: 8000)
-    
+    Host port to expose the service on (default: 80)
+
+.PARAMETER Mode
+    Container start mode (web=serve only, fetch-then-web=one-time fetch then serve, stack=daemon+web, daemon=background fetcher)
+
 .PARAMETER SecretKey
-    Flask secret key for the application
+    Flask secret key for the application (set to a strong random value in production)
     
 .PARAMETER Force
     Force rebuild and redeploy even if image exists
 
 .EXAMPLE
-    .\scripts\deploy.ps1 -InstanceIP "3.79.167.205" -KeyPath "C:\Users\rasmu\Downloads\ls.pem"
+    .\scripts\deploy.ps1            # builds image and starts web mode on port 80
     
 .EXAMPLE
-    .\scripts\deploy.ps1 -InstanceIP "3.79.167.205" -KeyPath ".\ls.pem" -Port 80 -Force
+    .\scripts\deploy.ps1 -Mode fetch-then-web -Port 443 -SecretKey (New-Guid)
 #>
 
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$InstanceIP,
+    [Parameter(Mandatory = $false)]
+    [string]$InstanceIP = "63.179.143.196",
     
-    [Parameter(Mandatory = $true)]
-    [string]$KeyPath,
+    [Parameter(Mandatory = $false)]
+    [string]$KeyPath = "data\\aws_ec2_rex.pem",
     
     [string]$Tag = "latest",
-    [int]$Port = 8000,
+    [int]$Port = 80,
+    [ValidateSet("web", "fetch-then-web", "stack", "daemon")]
+    [string]$Mode = "web",
     [string]$SecretKey = "please-change-me-in-production",
     [switch]$Force
 )
@@ -178,13 +183,13 @@ sudo chown -R `$CONTAINER_UID:`$CONTAINER_GID /home/$RemoteUser/data /home/$Remo
 
 echo "[REMOTE] Starting new container..."
 docker run -d --name $ContainerName \
-  -p $Port`:8000 \
-  -v /home/$RemoteUser/data:/app/data \
-  -v /home/$RemoteUser/config:/app/config \
-  -v /home/$RemoteUser/var:/var/newsreader \
-  -e FLASK_SECRET_KEY="$SecretKey" \
-  --restart unless-stopped \
-  $ImageName`:$Tag fetch-then-web
+    -p $Port`:8000 \
+    -v /home/$RemoteUser/data:/app/data \
+    -v /home/$RemoteUser/config:/app/config \
+    -v /home/$RemoteUser/var:/var/newsreader \
+    -e FLASK_SECRET_KEY="$SecretKey" \
+    --restart unless-stopped \
+    $ImageName`:$Tag $Mode
 
 echo "[REMOTE] Waiting for container to start..."
 sleep 5
@@ -192,8 +197,21 @@ sleep 5
 echo "[REMOTE] Container status:"
 docker ps --filter name=$ContainerName --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-echo "[REMOTE] Recent logs:"
-docker logs --tail 10 $ContainerName
+echo "[REMOTE] Running health check on http://127.0.0.1:$Port/ ..."
+if ! curl -fsS --max-time 5 http://127.0.0.1:$Port/ > /tmp/newsreader_health.log 2>&1; then
+    echo "[REMOTE] Health check FAILED"
+    echo "[REMOTE] curl output:"
+    cat /tmp/newsreader_health.log
+    echo "[REMOTE] Recent logs (last 50 lines):"
+    docker logs --tail 50 $ContainerName
+    rm -f /home/$RemoteUser/$TarFile
+    exit 1
+else
+    echo "[REMOTE] Health check passed"
+fi
+
+echo "[REMOTE] Recent logs (last 20 lines):"
+docker logs --tail 20 $ContainerName
 
 echo "[REMOTE] Cleanup..."
 rm -f /home/$RemoteUser/$TarFile
