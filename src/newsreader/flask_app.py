@@ -369,12 +369,12 @@ def logout():
 
 @app.route('/article/<int:article_id>')
 def article_detail(article_id):
-    articles = db.get_articles(limit=1, offset=article_id-1)
-    if not articles:
+    user_id = session.get('user_id')
+    article = db.get_article_by_id(article_id, user_id=user_id)
+    if not article:
         flash('Article not found', 'danger')
         return redirect(url_for('index'))
-    article = articles[0]
-    return render_template('article_detail.html', article=article, user_id=session.get('user_id'), username=session.get('username'))
+    return render_template('article_detail.html', article=article, user_id=user_id, username=session.get('username'))
 
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():

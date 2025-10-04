@@ -1,4 +1,5 @@
 import os
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Callable, Dict, Optional
@@ -20,7 +21,12 @@ def _reset_settings(tmp_path, monkeypatch):
     monkeypatch.setenv("NEWSREADER_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("NEWSREADER_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("NEWSREADER_VAR_DIR", str(tmp_path / "var"))
-    monkeypatch.setenv("NEWSREADER_TEMPLATE_DIR", str(tmp_path / "templates"))
+    template_src = Path(__file__).resolve().parents[1] / "src" / "newsreader" / "templates"
+    template_dest = tmp_path / "templates"
+    if not template_dest.exists():
+        shutil.copytree(template_src, template_dest)
+
+    monkeypatch.setenv("NEWSREADER_TEMPLATE_DIR", str(template_dest))
     monkeypatch.setenv("NEWSREADER_DB_PATH", str(tmp_path / "var" / "newsreader.db"))
     monkeypatch.setenv("NEWSREADER_LOG_DIR", str(tmp_path / "var" / "logs"))
     monkeypatch.setenv("NEWSREADER_DAEMON_LOG", str(tmp_path / "var" / "logs" / "news_daemon.log"))

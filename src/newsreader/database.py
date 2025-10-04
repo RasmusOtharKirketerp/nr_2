@@ -653,6 +653,76 @@ class DatabaseManager:
                 articles.append(article)
             return articles
 
+    def get_article_by_id(self, article_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
+        """Fetch a single article by its primary key, including per-user score if provided."""
+        excluded = set(self.get_excluded_tags())
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(articles)")
+            columns = [row[1] for row in cursor.fetchall()]
+            has_thumbnail = 'thumbnail_url' in columns
+
+            select_cols = "a.id, a.title, a.content, a.summary, a.url, a.source, a.published_date, a.fetched_at, "
+            if user_id is not None:
+                select_cols += "COALESCE(uas.score, a.score) AS score"
+            else:
+                select_cols += "a.score"
+            if has_thumbnail:
+                select_cols += ", a.thumbnail_url"
+
+            if user_id is not None:
+                query = f"""
+                    SELECT {select_cols}
+                    FROM articles a
+                    LEFT JOIN user_article_scores uas ON a.id = uas.article_id AND uas.user_id = ?
+                    WHERE a.id = ?
+                """
+                cursor.execute(query, (user_id, article_id))
+            else:
+                query = f"""
+                    SELECT {select_cols}
+                    FROM articles a
+                    WHERE a.id = ?
+                """
+                cursor.execute(query, (article_id,))
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            published_date = row[6]
+            if isinstance(published_date, bytes):
+                published_date = published_date.decode('utf-8')
+            elif isinstance(published_date, datetime):
+                published_date = published_date.isoformat()
+            fetched_at = row[7]
+            if isinstance(fetched_at, bytes):
+                fetched_at = fetched_at.decode('utf-8')
+            elif isinstance(fetched_at, datetime):
+                fetched_at = fetched_at.isoformat()
+
+            article = {
+                'id': row[0],
+                'title': row[1],
+                'content': row[2],
+                'summary': row[3],
+                'url': row[4],
+                'source': row[5],
+                'published_date': published_date,
+                'fetched_at': fetched_at,
+                'score': row[8]
+            }
+            if has_thumbnail:
+                article['thumbnail_url'] = row[9]
+
+            cursor2 = conn.cursor()
+            cursor2.execute("SELECT tag FROM geo_tags WHERE article_id = ?", (article_id,))
+            tags = [r[0] for r in cursor2.fetchall()]
+            if tags and all(t in excluded for t in tags):
+                return None
+
+            return article
+
     def delete_article(self, article_id: int) -> bool:
         """Delete an article and all related records."""
         with self.get_connection() as conn:
